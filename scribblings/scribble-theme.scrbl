@@ -5,6 +5,7 @@
                      scribble/html-properties
                      racket/base)
           scribble/core
+          scribble/decode
           scribble/html-properties
           racket/runtime-path)
 
@@ -19,6 +20,13 @@
   (element (style "prompt" (list (css-style-addition add-css)))
            (apply exec elems)))
 
+@(define (inline-note #:type [type 'note] . elems)
+  (compound-paragraph
+   (style "inline-note" (list (css-style-addition add-css)
+                          (attributes `((class . ,(format "refcontent ~a" type))))
+                          (alt-tag "aside")))
+   (decode-flow elems)))
+
 @title{Scribble themes}
 @author{Joel Dueck}
 
@@ -27,6 +35,9 @@
 Scribble documents published as HTML already look great (at least, the ones written in @code{#lang
 scribble/manual}). If you want to thoroughly customize the look of the rendered HTML, though, it can
 be tricky, so I made this package to make it a bit easier.
+
+@inline-note{You can see an example of a themed version of these docs at
+@url{https://joeldueck.com/what-about/scribble-theme/}.}
 
 In my case, I wanted Scribble docs for my packages to render normally when rendered as part of a
 local install or the main site @url{https://docs.racket-lang.org}, but I wanted to easily substitute

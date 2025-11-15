@@ -1,0 +1,33 @@
+.terminal {
+    margin-bottom: 1em;
+    padding: 0.5em;
+    background: #fafafa;
+    color: #663399;
+    border: solid silver 1px;
+    border-radius: 4px;
+    font-size: .9rem;
+}
+
+.terminal .SIntrapara {
+    margin: 0 0 0 0;
+}
+
+.terminal .prompt {
+    margin-left: .5rem;
+}
+
+.terminal .prompt:before {
+    content: "❯";
+    font-size: .95rem;
+    float: left;
+    margin-top: -1px;
+    color: #aaaaaa;
+}
+
+.prompt {
+    color: #000;
+}
+
+.terminal .stt {
+    font-size: .9rem;
+}

@@ -5,4 +5,10 @@
 compiled/
 /doc/
 *.swp
-
+*.html
+*.js
+*.css
+publish/
+makefile
+!manual-my-style.css
+!manual-my-fonts.css

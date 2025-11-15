@@ -1,9 +1,7 @@
+/* This is a copy of the default styles from scribble/manual to get you started.
+ * Here, manual-style.css and manual-racket.css are combined into a single file. */
 
-/* See the beginning of "scribble.css".
-   This file is used by the `scribble/manual` language, along with
-   "manual-racket.css". */
-
-@import url("manual-fonts.css");
+@import url("manual-my-fonts.css");
 
 * {
     margin: 0;

@@ -75,17 +75,34 @@ themed version for customized output.
 
 @;===============================================
 
+@section{Installation}
+
+I recommend to install this package by forking/cloning its
+@hyperlink["https://github.com/otherjoel/scribble-theme"]{GitHub repository}.
+
+When you have a local copy of it, install it as a “linked” package:
+
+@terminal{
+@:>{raco pkg install --link scribble-theme/}
+}
+
+@inline-note{You can also install the package from the main package server. But in that case it will
+be more difficult to follow the instructions below for adding custom CSS. You’ll need to limit
+yourself to the approach in @secref["supplying-themes"].}
+
+@;===============================================
+
 @section{Setting Up Your Theme}
 
-First, fork/clone this repo and install it as a linked package with @exec{raco pkg install --link
-scribble-theme/}.
+Assuming you’ve installed the package from a local/linked folder on your computer, you can simply
+edit the base @tech{theme} supplied with this package.
 
-Next, edit the @filepath{manual-my-style.css} and @filepath{manual-my-fonts.css} files in this
-repo's main folder to customize your theme.
+Edit the @filepath{manual-my-style.css} and @filepath{manual-my-fonts.css} files in this repo's main
+folder to customize your theme.
 
 @section{Rendering HTML}
 
-Then, in the same folder as your Scribble sources, create a new file:
+In the same folder as your Scribble sources, create a new file:
 
 @filebox["my-themed-scribblings.scrbl"]{
 @codeblock|{
@@ -150,7 +167,7 @@ you can supply the new key in your call to @racket[customize+provide-doc].
 
 @;------------------------------------------------
 
-@subsection{Supplying themes stored in another collection}
+@subsection[#:tag "supplying-themes"]{Supplying themes stored in another collection}
 
 In your themed @filepath{.scrbl} file’s call to @racket[customize+provide-doc], you can supply your
 own @racket[html-defaults] struct which refers directly to your own CSS files:

@@ -1,60 +1,86 @@
 #lang racket/base
 
-(require (for-syntax racket/base)
+(require (for-syntax racket/base racket/path)
          racket/cmdline
          racket/contract
          racket/file
          racket/list
+         racket/path
          scribble/core
          scribble/html-properties)
 
-(provide scribble/manual-custom-css
-         customize+provide-doc
-         (struct-out html-defaults))
+(provide
+ theme/provide-doc
+ (contract-out
+  [css-imports (-> absolute-path? (listof absolute-path?))]
+  [css->html-defaults (-> absolute-path? html-defaults?)]
+  [scribble/manual-custom-css (-> module-path? html-defaults? part?)]))
 
-(define themes
-  (hasheq 'my-theme
-          (html-defaults '(collects #"scribble" #"scribble-prefix.html")
-                         '(collects #"scribble-theme" #"manual-my-style.css")
-                         '((collects #"scribble-theme" #"manual-my-fonts.css")))))
+
+;;================================================
+;; CSS
+
+;; Get a list of CSS files referenced via CSS @import
+(define (css-imports css-file-path)
+  (define import-regex
+    #px"@import\\s+(?:url\\s*\\(\\s*)?['\"]?([^'\"\\)]+)['\"]?\\s*\\)?[^;]*;")
+  (define css-dir (path-only css-file-path))
+  (define content (file->string css-file-path))
+  
+  (for/list ([match (in-list (regexp-match* import-regex content #:match-select cadr))]
+             #:when (file-exists? (build-path css-dir match)))
+    (build-path css-dir match)))
+
+;; Construct html-defaults struct value from a CSS file
+;; The `extra-files` field consists of any additional CSS files discovered via @import
+(define (css->html-defaults abs-css-path)
+  (html-defaults '(collects #"scribble" #"scribble-prefix.html")
+                 (path->string abs-css-path)
+                 (map path->string (css-imports abs-css-path))))
+
+
+;;================================================
+;; Scribble doc customizations
 
 (define (manual-racket-css-addition? v)
   (equal? v (css-style-addition '(collects #"scribble" #"manual-racket.css"))))
 
 ;; For scribble/manual docs: remove the css-style-addition and replace html-defaults
 ;; Filename-string Symbol -> Part
-(define/contract (scribble/manual-custom-css scrbl-file theme-key-or-data)
-  (-> module-path? (or/c symbol? html-defaults?) part?)
-
-  (define (key-missing-thunk)
-    (raise-argument-error
-     'scribble/manual-custom-css
-     (format "one of: ~a" (hash-keys themes))
-     theme-key-or-data))
-
-  (define new-html-theme
-    (if (html-defaults? theme-key-or-data)
-        theme-key-or-data
-        (hash-ref themes theme-key-or-data key-missing-thunk)))
-
-  (define (update-prop v)
-    (cond [(html-defaults? v) new-html-theme]  ; replace html-defaults
-          [(manual-racket-css-addition? v) #f] ; omit css-addition added by scribble/manual
-          [else v]))
+(define (scribble/manual-custom-css scrbl-file new-html-defaults)
   
+  (define (update-prop v)
+    (cond [(html-defaults? v) new-html-defaults] ; replace html-defaults
+          [(manual-racket-css-addition? v) #f]   ; omit css-addition added by scribble/manual
+          [else v]))
   (define doc (dynamic-require scrbl-file 'doc))
   (define new-style
     (style #f (filter-map update-prop (style-properties (part-style doc)))))
   (struct-copy part doc [style new-style]))
 
-;; Convenience: get the updated doc from scribble/manual-custom-css and provide it
-(define-syntax (customize+provide-doc stx)
+;; The main macro
+(define-syntax (theme/provide-doc stx)
   (syntax-case stx ()
-    [(_ filename theme-key-or-data)
-     (with-syntax ([DOC (datum->syntax stx 'doc)])
-       #'(begin
-           (define DOC (scribble/manual-custom-css filename theme-key-or-data))
-           (provide DOC)))]))
+    [(_ scrbl-filename css-path)
+     (let ([css-path-datum (syntax->datum #'css-path)])
+       (with-syntax ([abs-css-path
+                      (if (absolute-path? css-path-datum)
+                          (build-path css-path-datum)
+                          (datum->syntax #'css-path
+                                         (simplify-path 
+                                          (build-path (path-only (syntax-source stx)) 
+                                                      css-path-datum))))]
+                     [DOC (datum->syntax stx 'doc)])
+         #'(begin
+             (define DOC
+               (scribble/manual-custom-css
+                scrbl-filename
+                (css->html-defaults abs-css-path)))
+             (provide DOC))))]))
+
+
+;;================================================
+;; Utility
 
 (define (copy-base-css-files outfile)
   (define manual-style-css (collection-file-path "manual-style.css" "scribble"))

@@ -46,17 +46,25 @@
   (equal? v (css-style-addition '(collects #"scribble" #"manual-racket.css"))))
 
 ;; For scribble/manual docs: remove the css-style-addition and replace html-defaults
+;; Recursively updates all parts in the document tree
 ;; Filename-string Symbol -> Part
 (define (scribble/manual-custom-css scrbl-file new-html-defaults)
-  
   (define (update-prop v)
     (cond [(html-defaults? v) new-html-defaults] ; replace html-defaults
           [(manual-racket-css-addition? v) #f]   ; omit css-addition added by scribble/manual
           [else v]))
+
+  ;; Recursively update a part and all its sub-parts
+  (define (update-part p)
+    (define new-style
+      (style #f (filter-map update-prop (style-properties (part-style p)))))
+    (define new-parts (map update-part (part-parts p)))
+    (struct-copy part p
+                 [style new-style]
+                 [parts new-parts]))
+
   (define doc (dynamic-require scrbl-file 'doc))
-  (define new-style
-    (style #f (filter-map update-prop (style-properties (part-style doc)))))
-  (struct-copy part doc [style new-style]))
+  (update-part doc))
 
 ;; The main macro
 (define-syntax (theme/provide-doc stx)

@@ -143,7 +143,9 @@ scribble --html +m \@(linebreak)
 }
 
 This will place the output in the @filepath{docs/} subfolder with @filepath{index.html}
-as the main HTML file. 
+as the main HTML file. Your CSS files are copied into the output under content-hashed names, such as
+@filepath{my-theme-3f2a9c1b.css}, so browsers and CDNs fetch a fresh copy whenever the CSS changes
+(see @racket[css->html-defaults]).
 
 @inline-note{The above example also shows how to ensure cross references to other Racket docs link
 out to the main Racket documentation website. See @secref["running" #:doc '(lib
@@ -231,10 +233,11 @@ Scribble's own fixed elements (table of contents, page navigation, version box) 
 
 @section{Reference}
 
-@defform[(theme/provide-doc scrbl-filename css-path maybe-nav)
-         #:grammar ([maybe-nav (code:line)
-                              (code:line #:nav nav-items-expr)])
-         #:contracts ([nav-items-expr (or/c #f (listof nav-item/c))])]{
+@defform[(theme/provide-doc scrbl-filename css-path keyword-option ...)
+         #:grammar ([keyword-option (code:line #:nav nav-items-expr)
+                                    (code:line #:fingerprint? fingerprint-expr)])
+         #:contracts ([nav-items-expr (or/c #f (listof nav-item/c))]
+                      [fingerprint-expr boolean?])]{
 
 The main macro for creating a themed version of a Scribble document.
 
@@ -254,10 +257,13 @@ If @racket[#:nav] is given, a site navigation bar built from the @tech{nav links
 menus} in @racket[nav-items-expr] is added to the top of every HTML page (see
 @secref["nav"]).
 
+The CSS files are copied into the output under content-hashed names unless @racket[#:fingerprint?]
+is @racket[#f] (see @racket[css->html-defaults]).
+
 This macro expands to a call to @racket[scribble/manual-custom-css] wrapped in a @racket[provide]
 that exports the @racket[doc] binding.
 
-@history[#:changed "2.1" @elem{Added the @racket[#:nav] argument.}]
+@history[#:changed "2.1" @elem{Added the @racket[#:nav] and @racket[#:fingerprint?] arguments.}]
 
 }
 
@@ -317,7 +323,8 @@ directives in the imported files.
 
 }
 
-@defproc[(css->html-defaults [abs-css-path absolute-path?]) html-defaults?]{
+@defproc[(css->html-defaults [abs-css-path absolute-path?]
+                             [#:fingerprint? fingerprint? boolean? #t]) html-defaults?]{
 
 Constructs an @racket[html-defaults] struct suitable for use with @racketmodname[scribble/manual]
 documents.
@@ -325,6 +332,16 @@ documents.
 The @racket[html-defaults] uses the default Scribble prefix file and sets @racket[abs-css-path] as
 the main style file. The @racket[extra-files] field is populated with any additional CSS files
 discovered via @racket[css-imports].
+
+When @racket[fingerprint?] is true, the main CSS file and its imports are first copied to a
+@filepath{scribble-theme} folder inside the system temporary directory, each under a name that
+includes the first eight hex digits of the SHA-1 hash of its contents (for example,
+@filepath{my-theme.css} becomes @filepath{my-theme-3f2a9c1b.css}). The @tt{@"@"import} references
+in the copy of the main file are rewritten to the hashed names, and the copies are what Scribble
+installs and links in the rendered HTML. A change to any of the files produces new names, so caches
+never serve stale CSS; unchanged files keep the same names from build to build.
+
+@history[#:changed "2.1" @elem{Added the @racket[#:fingerprint?] argument.}]
 
 }
 

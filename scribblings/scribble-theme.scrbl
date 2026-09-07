@@ -152,9 +152,89 @@ out to the main Racket documentation website. See @secref["running" #:doc '(lib
 
 @;===============================================
 
+@section[#:tag "nav"]{Adding a site navigation bar}
+
+Themed docs published on your own website usually need a way back to the rest of that site. Pass a
+list of navigation items to @racket[theme/provide-doc] with the @racket[#:nav] keyword, and a bar of
+links is inserted at the top of every HTML page:
+
+@filebox["my-themed-scribblings.scrbl"]{
+@codeblock|{
+#lang racket/base
+
+(require scribble-theme)
+
+(define site-nav
+  (list (cons "My Site" "https://example.com/")
+        (cons "Projects" "https://example.com/projects.html")
+        (cons "Other docs"
+              (list (cons "Guide" "https://example.com/guide/")
+                    (cons "Reference" "https://example.com/reference/")))))
+
+(theme/provide-doc "my-package.scrbl" "my-theme.css" #:nav site-nav)
+}|}
+
+Each item is either a @deftech{nav link} (a label paired with a URL) or a @deftech{nav menu} (a label
+paired with a list of nav links). A menu renders as a @tt{<details>} element, so it opens and closes
+without JavaScript.
+
+The bar appears exactly once on every page: on the single page produced by @exec{scribble --html},
+and on every page produced by @exec{scribble --htmls}. Internally, a block is added to the front of
+every @racket[part] in the document; at render time this block produces the bar only in parts that
+begin a new HTML page, and an empty hidden @tt{<span>} everywhere else.
+
+This package supplies no CSS for the bar. It generates the markup below, and you style it in your
+@tech{theme}:
+
+@verbatim|{
+<nav class="theme-nav">
+  <span class="theme-nav-item"><a href="https://example.com/">My Site</a></span>
+  <span class="theme-nav-item"><a href="https://example.com/projects.html">Projects</a></span>
+  <details class="theme-nav-menu theme-nav-item">
+    <summary>Other docs</summary>
+    <ul>
+      <li><span><a href="https://example.com/guide/">Guide</a></span></li>
+      <li><span><a href="https://example.com/reference/">Reference</a></span></li>
+    </ul>
+  </details>
+</nav>
+}|
+
+The bar is placed inside the main column, just after the page heading, so a fixed position is the
+simplest way to keep it at the top of the window. The CSS below is a starting point. It also moves
+Scribble's own fixed elements (table of contents, page navigation, version box) down to make room:
+
+@verbatim|{
+:root { --site-nav-height: 2.4rem; }
+
+.theme-nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 12000;
+    height: var(--site-nav-height);
+    display: flex; align-items: center;
+    background: #fff; border-bottom: 1px solid #eaeaea;
+}
+.theme-nav-item:first-child { margin-right: auto; }
+.theme-nav-menu { position: relative; }
+.theme-nav-menu > summary { list-style: none; cursor: pointer; }
+.theme-nav-menu ul {
+    position: absolute; right: 0; top: 100%;
+    list-style: none; background: #fff; border: 1px solid #eaeaea;
+}
+
+.tocset, .navsettop { top: var(--site-nav-height); }
+.maincolumn { margin-top: calc(4rem + var(--site-nav-height)); }
+.versionbox { top: calc(0.25rem + var(--site-nav-height)); }
+@media print { .theme-nav { display: none; } }
+}|
+
+@;===============================================
+
 @section{Reference}
 
-@defform[(theme/provide-doc scrbl-filename css-path)]{
+@defform[(theme/provide-doc scrbl-filename css-path maybe-nav)
+         #:grammar ([maybe-nav (code:line)
+                              (code:line #:nav nav-items-expr)])
+         #:contracts ([nav-items-expr (or/c #f (listof nav-item/c))])]{
 
 The main macro for creating a themed version of a Scribble document.
 
@@ -170,8 +250,14 @@ relative to the location of the file containing the @racket[theme/provide-doc] c
 Any additional CSS files referenced via @tt{@"@"import} directives in the main CSS file (one level
 deep) are automatically discovered and included in the output.
 
+If @racket[#:nav] is given, a site navigation bar built from the @tech{nav links} and @tech{nav
+menus} in @racket[nav-items-expr] is added to the top of every HTML page (see
+@secref["nav"]).
+
 This macro expands to a call to @racket[scribble/manual-custom-css] wrapped in a @racket[provide]
 that exports the @racket[doc] binding.
+
+@history[#:changed "2.1" @elem{Added the @racket[#:nav] argument.}]
 
 }
 
@@ -184,12 +270,39 @@ You probably won’t need these functions unless you want to dynamically constru
 @racket[part]s that use your @tech{themes}.
 
 @defproc[(scribble/manual-custom-css [scrbl-file module-path?]
-                                     [new-html-defaults html-defaults?]) part?]{
+                                     [new-html-defaults html-defaults?]
+                                     [#:nav nav-items (or/c #f (listof nav-item/c)) #f]) part?]{
 
 Dynamically requires the @racket[doc] value from @racket[scrbl-file], replaces its HTML styling
-properties with @racket[new-html-defaults], and returns the updated @racket[part].
+properties with @racket[new-html-defaults], and returns the updated @racket[part]. If
+@racket[nav-items] is a list, a block produced by @racket[theme/nav-block] is added to the front of
+every part in the document.
 
 This is the function used internally by @racket[theme/provide-doc].
+
+@history[#:changed "2.1" @elem{Added the @racket[#:nav] argument.}]
+
+}
+
+@deftogether[(@defthing[nav-link/c contract? #:value (cons/c string? string?)]
+              @defthing[nav-item/c contract?
+                        #:value (or/c nav-link/c (cons/c string? (listof nav-link/c)))])]{
+
+Contracts for @tech{nav links} and @tech{nav menus}: a link is a label paired with a URL, and a menu
+is a label paired with a list of links.
+
+@history[#:added "2.1"]
+
+}
+
+@defproc[(theme/nav-block [items (listof nav-item/c)]) block?]{
+
+Returns a @racket[delayed-block] that renders as a @tt{<nav class="theme-nav">} element when it
+appears in a part that begins a whole HTML page, and as an empty hidden @tt{<span>} otherwise. Each
+part that should carry the bar needs its own block from this function, because the renderer caches
+the resolved block per object.
+
+@history[#:added "2.1"]
 
 }
 

@@ -237,7 +237,7 @@ Scribble's own fixed elements (table of contents, page navigation, version box) 
          #:grammar ([keyword-option (code:line #:nav nav-items-expr)
                                     (code:line #:fingerprint? fingerprint-expr)])
          #:contracts ([nav-items-expr (or/c #f (listof nav-item/c))]
-                      [fingerprint-expr boolean?])]{
+                      [fingerprint-expr any/c])]{
 
 The main macro for creating a themed version of a Scribble document.
 
@@ -324,7 +324,7 @@ directives in the imported files.
 }
 
 @defproc[(css->html-defaults [abs-css-path absolute-path?]
-                             [#:fingerprint? fingerprint? boolean? #t]) html-defaults?]{
+                             [#:fingerprint? fingerprint? any/c #t]) html-defaults?]{
 
 Constructs an @racket[html-defaults] struct suitable for use with @racketmodname[scribble/manual]
 documents.

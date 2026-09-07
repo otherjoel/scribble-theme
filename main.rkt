@@ -19,7 +19,7 @@
  nav-item/c
  (contract-out
   [css-imports (-> absolute-path? (listof absolute-path?))]
-  [css->html-defaults (->* (absolute-path?) (#:fingerprint? boolean?) html-defaults?)]
+  [css->html-defaults (->* (absolute-path?) (#:fingerprint? any/c) html-defaults?)]
   [theme/nav-block (-> (listof nav-item/c) block?)]
   [scribble/manual-custom-css (->* (module-path? html-defaults?)
                                    (#:nav (or/c #f (listof nav-item/c)))

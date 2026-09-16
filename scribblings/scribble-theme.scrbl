@@ -1,8 +1,12 @@
 #lang scribble/manual
 
 @(require (for-label scribble-theme
+                     scribble-theme/xref
                      scribble/core
+                     scribble/xref
                      scribble/html-properties
+                     setup/xref
+                     setup/dirs
                      racket/base)
           scribble/core
           scribble/decode
@@ -231,6 +235,63 @@ Scribble's own fixed elements (table of contents, page navigation, version box) 
 
 @;===============================================
 
+@section[#:tag "xref"]{Linking to docs you publish elsewhere}
+
+When a themed doc refers to a binding or section in another document (with @racket[racket],
+@racket[secref] and so on), Scribble resolves the link from the cross-reference info of the copy
+installed locally. The @exec{--redirect} flag shown above sends every such link through
+@url{https://docs.racket-lang.org/local-redirect/}, which only knows about the docs on that site. If
+you publish several of your own packages' docs on your own site, links between them should stay
+on your site instead.
+
+The module @racketmodname[scribble-theme/xref] loads the cross-reference info of every user-scope
+document itself and rewrites the link targets. Targets in the docs you publish get the absolute URL
+of the published page. Targets in every other user-scope doc are made to look like part of the main
+Racket docs, so that @exec{--redirect-main} sends them to @url{https://docs.racket-lang.org} along
+with the real main docs. Write a small module that calls @racket[theme/load-xref] with your URLs:
+
+@filebox["site-xref.rkt"]{
+@codeblock|{
+#lang racket/base
+
+(require scribble-theme/xref)
+
+(provide site-xref)
+
+(define (site-xref)
+  (theme/load-xref (hash "my-package" "https://example.com/docs/my-package/"
+                         "my-other-package" "https://example.com/docs/my-other-package/")))
+}|}
+
+The keys are document ids: the name of the directory that holds a document's rendered pages, which
+is normally the name of the main @filepath{.scrbl} file, or the name given in the package's
+@racket[scribblings] declaration. Then render with @exec{++xref-in} in place of @exec{--redirect},
+and add @exec{--redirect-main} so that links into the main Racket docs still go to
+@url{https://docs.racket-lang.org}:
+
+@terminal{
+@:>{
+scribble --html +m \@(linebreak)
+@hspace[9] --redirect-main https://docs.racket-lang.org/ \@(linebreak)
+@hspace[9] ++xref-in '"site-xref.rkt"' site-xref \@(linebreak)
+@hspace[9] --dest docs/ \@(linebreak)
+@hspace[9] --dest-name index.html \@(linebreak)
+@hspace[9] my-themed-scribblings.scrbl}
+}
+
+@inline-note{The links are computed from the locally installed copy of each document, so the
+published copy must have the same page layout: render both as a single page, or both with multiple
+pages (the @racket['multi-page] flag in the package's @racket[scribblings] declaration corresponds to
+@exec{scribble --htmls}). Keep the installed docs up to date with @exec{raco setup} before
+rendering.}
+
+Links marked @racket[#:indirect] are the one exception. Scribble always sends those through a
+search URL, so an indirect link into a doc you publish goes to a tag search at the installation's
+documentation search site rather than to your copy. Drop the @racket[#:indirect] flag for docs that
+are installed when you render.
+
+@;===============================================
+
 @section{Reference}
 
 @defform[(theme/provide-doc scrbl-filename css-path keyword-option ...)
@@ -345,4 +406,25 @@ never serve stale CSS; unchanged files keep the same names from build to build.
 
 }
 
+@;------------------------------------------------
 
+@subsection{Cross-references}
+
+@defmodule[scribble-theme/xref]
+
+@defproc[(theme/load-xref [urls (hash/c string? string?)]) xref?]{
+
+Loads the cross-reference info of every rendered document installed in user scope (as listed by
+@racket[get-rendered-doc-directories]) and returns it as an @racket[xref?] value suitable for
+@exec{scribble ++xref-in}. See @secref["xref"].
+
+Every link target in a document whose id is a key of @racket[urls] is made an absolute URL under the
+corresponding value. Targets in any other user-scope document are given a path under
+@racket[(find-doc-dir)], as if the document were part of the main installation, so that
+@exec{scribble --redirect-main} links to them the same way it links to the main docs.
+
+Documents in the main installation are not included. Use @exec{scribble +m} to load those.
+
+@history[#:added "2.2"]
+
+}

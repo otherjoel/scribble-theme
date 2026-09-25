@@ -1,6 +1,7 @@
 #lang info
 (define collection "scribble-theme")
-(define deps '("scribble-lib"
+(define deps '("rackunit-lib"
+               "scribble-lib"
                "racket-index"
                "base"))
 (define build-deps '("scribble-doc"
